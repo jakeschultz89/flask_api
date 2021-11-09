@@ -1,8 +1,14 @@
 from flask import Flask, abort, render_template, request
 from mock_data import mock_data
+from flask_cors import CORS
+from config import db, json_parse
 import json
+from bson import ObjectId
 
 app = Flask(__name__)
+CORS(app) #allow anyone to call the server (**DANGER**)
+
+
 coupon_codes = [
     {
         "code": "qwerty",
@@ -53,7 +59,16 @@ def email():
 @app.route("/api/catalog", methods=["get"])
 def get_catalog():
     # returns the catalog JSON
-    return json.dumps(mock_data)
+    cursor = db.products.find({}) # find with no filter/get all in the collection
+    catalog = []
+    for prod in cursor:
+        catalog.append(prod)
+
+    # investigative HW: read about Python list comprehension
+
+    print(len(catalog), "Records obtained from db" ) 
+
+    return json_parse(catalog) # error
 
 @app.route("/api/catalog", methods=["post"])
 def save_product():
@@ -81,55 +96,58 @@ def save_product():
         return abort(400,"Price should be greater than 0")
 
     # save the product
-    mock_data.append(product)
-    product["_id"] = len(product["title"])
+    db.products.insert_one(product)
 
     # return the saved object
-    return json.dumps(product)
+    return json_parse(product)
 
 
 # /api/catagories
-# return the list (string) of UNIQUE catagories
 @app.route("/api/categories")
 def get_categories():
+    # return the list (string) of UNIQUE catagories
     categories = []
-    for prod in mock_data:
-        print(prod["category"])
-
+    # get all the prods from db into a cursor
+    cursor = db.products.find({})
+    # iterate over the cursor instead of mock_data
+    for prod in cursor:
         if not prod["category"] in categories:
             categories.append(prod["category"])
 
-    return json.dumps(categories)
+    # logic
+    return json_parse(categories)
 
 @app.route("/api/product/<id>")
 def get_product(id):
-    for prod in mock_data:
-        if prod["_id"] == id:
-            return prod
-
-    return abort(404) # 404 = not found
+    product = db.products.find_one({"_id": ObjectId(id)})
+    if not product:
+        return abort(404) # 404 = Not Found
+    
+    return json_parse(product)
 
 # api/catalog/<category>
 # return all the products that belong to that category
 @app.route("/api/catalog/<category>")
 def get_by_category(category):
-    result = []
-    for prod in mock_data:
-        if prod["category"].lower() == category.lower():
-            result.append(prod)
-
-    return json.dumps(result)
+    # mongo to search case insensitive we use Regular Expressions
+    cursor = db.products.find({"category": category})
+    list = []
+    for prod in cursor:
+        list.append(prod)
+    
+    return json_parse(list)
 
 
 # /api/cheapest
 @app.route("/api/cheapest")
 def get_cheapest():
-    pivot = mock_data[0]
-    for prod in mock_data:
+    cursor = db.products.find({})
+    pivot = cursor[0]
+    for prod in cursor:
         if prod["price"] < pivot["price"]:
             pivot = prod
 
-    return pivot
+        return json_parse(prod)
 
 
 #################################
@@ -137,31 +155,53 @@ def get_cheapest():
 #################################
 
 # POST to /api/couponcodes
-@app.route("api/couponcodes")
+@app.route("/api/couponCodes", methods=["POST"])
 def save_coupon():
     coupon = request.get_json()
 
     # validations
+    if not "code" in coupon or len(coupon["code"]) < 5:
+        return abort(400, "Code is required and must be at least 5 characters")
 
     # save
-    coupon_codes.append(coupon)
-    coupon["_id"] = len(coupon["code"])
-    return json.dumps(coupon)
+    db.couponCodes.insert_one(coupon)
+    return json_parse(coupon)
 
 # GET to /api/couponcodes
-@app.route("/api/couponcodes")
+@app.route("/api/couponCodes", methods=["GET"])
 def get_coupons():
-    return json.dumps(coupon_codes)
+    # read the coupons from db into a cursor
+    cursor = db.couponCodes.find({})
+    # parse the cursor into a list
+    all_coupons = []
+    for cp in cursor:
+        all_coupons.append(cp)
+    # return the list as json
+    return json_parse(all_coupons)
 
 
 # get coupon by its code or 404 if not found
 @app.route("/api/couponcodes/<code>")
 def get_coupon_by_code(code):
-    for coupon in coupon_codes:
-        if(coupon["code"] == code):
-            return json.dumps(coupon)
+    # get coupon from db
+    coupon = db.couponCodes.find_one({"code": code})
+    # if not found, return 404
+    if coupon is None:
+        return abort(404, "Invalid coupon code")
+    # otherwise return as JSON
+    return json_parse(coupon)
 
-    return abort(404)
+@app.route("/test/onetime/filldb")
+def fill_db():
+    # iterate over mock_data list
+    for prod in mock_data:
+        # save every object to db.products
+        prod.pop("_id") #remove the _id from the dictionary/product
+        db.products.insert_one(prod)
+
+    return "Done!"
+
+
 
 # start the server
 # debug true will restart the server automatically

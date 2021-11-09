@@ -1,3 +1,5 @@
+import axios from "axios";
+
 var catalog = [
     {
         _id:"133399r318723912xc98123",
@@ -122,16 +124,27 @@ var catalog = [
 ];
 
 class DataService {
-    getCatalog() {
+   async getCatalog() {
         // call the server to get the catalog
+        let res = await axios.get("http://127.0.0.1:5000/api/catalog");
+        console.log(res);
+        return res.data; // = an array of objects
 
-        // return the mock data (temporal)
-        return catalog;
+
+
+        // get categories
+        // "http://127.0.0.1:5000/api/catalog"
     }
 
     saveItem() {}
 
     saveOrder() {}
+
+    async getCategories() {
+        let res = await axios.get("http://127.0.0.1:5000/api/categories");
+        console.log(res);
+        return res.data;
+    }
 }
 
 export default DataService;

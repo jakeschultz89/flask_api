@@ -6,3 +6,6 @@ python3 server.py
 
 install packages:
 python3 -m pip install <package name>
+
+
+

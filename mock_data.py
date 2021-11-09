@@ -2,16 +2,6 @@
 
 mock_data = [
     {
-        "_id":"133399r318723912xc98123",
-        "price":.41,
-        "stock":421,
-        "title":"Bananas",
-        "image":"banana.jpeg",
-        "discount": 0,
-        "minimum": 6,
-        "category":"Fruit"
-    },
-    {
         "_id":"123399r318723912xc98123",
         "price":1.09,
         "stock":321,
