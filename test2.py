@@ -23,4 +23,4 @@ test.close()
 # write a line in the bottom of notes.txt
 notes = open("notes.txt", "a")
 notes.append("\nThis text was added with python code")
-notes.close()
+notes.clo
